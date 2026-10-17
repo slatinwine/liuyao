@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六爻卜筮 · 算卦模拟器</title>
+<style>
+  :root {
+    --paper: #f7f3ea;
+    --ink: #2b2b2b;
+    --ink-soft: #6b6558;
+    --cinnabar: #b03a2e;
+    --line-w: 180px;
+    --line-h: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Serif SC", "Songti SC", "SimSun", "STSong", serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px 60px;
+    background-image: radial-gradient(circle at 50% 0%, #fbf8f1 0%, var(--paper) 70%);
+  }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-size: 34px; letter-spacing: 14px; font-weight: 700;
+    text-indent: 14px;
+  }
+  header .sub {
+    margin-top: 10px; color: var(--ink-soft); font-size: 14px; letter-spacing: 4px;
+  }
+  header .rule {
+    width: 56px; height: 3px; background: var(--cinnabar); margin: 16px auto 0;
+  }
+
+  .panel {
+    width: 100%; max-width: 720px;
+    border: 1px solid #d8d0bf;
+    background: #fdfbf6;
+    padding: 28px 32px;
+    box-shadow: 0 2px 10px rgba(60,50,30,.06);
+  }
+  .panel + .panel { margin-top: 24px; }
+
+  /* 问题输入 */
+  .ask { text-align: center; }
+  .ask label { display:block; font-size: 14px; color: var(--ink-soft); margin-bottom: 10px; letter-spacing: 2px; }
+  .ask input {
+    width: 100%; max-width: 480px;
+    font: inherit; font-size: 16px;
+    padding: 10px 14px;
+    border: 1px solid #cfc6b2; background: #fff;
+    color: var(--ink); text-align: center; outline: none;
+  }
+  .ask input:focus { border-color: var(--cinnabar); }
+
+  button {
+    font: inherit; cursor: pointer;
+    background: var(--cinnabar); color: #fff;
+    border: none; padding: 12px 40px;
+    font-size: 17px; letter-spacing: 6px; text-indent: 6px;
+    margin-top: 18px;
+    transition: opacity .2s, transform .1s;
+  }
+  button:hover { opacity: .88; }
+  button:active { transform: scale(.97); }
+  button:disabled { background: #c9c2b2; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--cinnabar);
+    border: 1px solid var(--cinnabar);
+  }
+
+  /* 铜钱区 */
+  .coins-area { text-align: center; }
+  .toss-label { color: var(--ink-soft); font-size: 14px; margin-bottom: 16px; letter-spacing: 2px; min-height: 20px; }
+  .coins { display: flex; justify-content: center; gap: 26px; min-height: 96px; }
+  .coin {
+    width: 84px; height: 84px; border-radius: 50%;
+    background: #d4af37;
+    background: radial-gradient(circle at 35% 30%, #e8c96a, #c19a2e 75%);
+    box-shadow: inset 0 0 0 4px #a8871f, inset 0 0 14px rgba(0,0,0,.25), 0 3px 6px rgba(0,0,0,.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 700; color: #6e4f10;
+    user-select: none;
+  }
+  .coin.spinning { animation: spin .55s linear infinite; }
+  @keyframes spin {
+    0%   { transform: rotateY(0) translateY(0); }
+    50%  { transform: rotateY(180deg) translateY(-10px); }
+    100% { transform: rotateY(360deg) translateY(0); }
+  }
+  .coin .face-back { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .toss-result { margin-top: 14px; font-size: 15px; color: var(--ink); min-height: 24px; }
+  .toss-result b { color: var(--cinnabar); }
+
+  /* 卦象区 */
+  .hex-wrap { display: flex; justify-content: center; gap: 60px; flex-wrap: wrap; }
+  .hex-col { text-align: center; min-width: 240px; }
+  .hex-col h3 {
+    font-size: 15px; letter-spacing: 4px; color: var(--ink-soft);
+    font-weight: 400; margin-bottom: 6px;
+  }
+  .hex-name { font-size: 30px; letter-spacing: 8px; text-indent: 8px; margin: 4px 0 2px; }
+  .hex-name small { font-size: 14px; color: var(--ink-soft); letter-spacing: 2px; }
+  .hex-name .changed { color: var(--cinnabar); }
+  .hex-lines {
+    display: flex; flex-direction: column-reverse;
+    align-items: center; gap: 12px;
+    margin: 18px auto 0; padding: 14px 0;
+  }
+  .line-row { display: flex; align-items: center; gap: 10px; }
+  .line-label { font-size: 12px; color: var(--ink-soft); width: 34px; text-align: right; }
+  .line { position: relative; width: var(--line-w); height: var(--line-h); }
+  .line.yang { background: var(--ink); }
+  .line.yin { display: flex; justify-content: space-between; }
+  .line.yin::before, .line.yin::after {
+    content: ""; width: 44%; height: var(--line-h); background: var(--ink);
+  }
+  .line.old-yang { background: var(--cinnabar); }
+  .line.old-yin::before, .line.old-yin::after { background: var(--cinnabar); }
+  .mark {
+    width: 22px; font-size: 16px; color: var(--cinnabar);
+    font-weight: 700; text-align: left;
+  }
+  .hex-empty {
+    color: #b8b0a0; font-size: 15px; letter-spacing: 3px;
+    padding: 40px 0;
+  }
+
+  /* 结果区 */
+  .result { display: none; }
+  .result.show { display: block; }
+  .result h2 {
+    font-size: 18px; letter-spacing: 6px; text-align: center;
+    border-bottom: 1px solid #e2dbca; padding-bottom: 12px; margin-bottom: 18px;
+  }
+  .field { margin: 14px 0; line-height: 1.9; }
+  .field .k {
+    color: var(--cinnabar); font-size: 14px; letter-spacing: 3px;
+    margin-right: 10px; white-space: nowrap;
+  }
+  .field .v { font-size: 16px; }
+  .guaci { font-size: 17px; letter-spacing: 1px; }
+  .brief { color: #4a463d; }
+  .divider { border: none; border-top: 1px dashed #d8d0bf; margin: 18px 0; }
+  .note { font-size: 13px; color: var(--ink-soft); margin-top: 16px; line-height: 1.8; }
+  .actions { text-align: center; margin-top: 26px; }
+  .log { font-size: 13px; color: var(--ink-soft); margin-top: 20px; line-height: 1.9; text-align: left; }
+  footer { margin-top: 36px; color: #a89f8d; font-size: 12px; letter-spacing: 2px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>六爻卜筮</h1>
+  <div class="sub">三枚铜钱 · 六掷成卦 · 本卦变卦 · 白话解析</div>
+  <div class="rule"></div>
+</header>
+
+<div class="panel ask">
+  <label>所问何事（可留空）</label>
+  <input id="question" type="text" maxlength="50" placeholder="例：某事可成否？">
+  <div>
+    <button id="btnCast">起 卦</button>
+  </div>
+</div>
+
+<div class="panel coins-area">
+  <div class="toss-label" id="tossLabel">铜钱静候，心诚则灵</div>
+  <div class="coins" id="coins">
+    <div class="coin">字</div>
+    <div class="coin">字</div>
+    <div class="coin">字</div>
+  </div>
+  <div class="toss-result" id="tossResult"></div>
+</div>
+
+<div class="panel">
+  <div class="hex-wrap">
+    <div class="hex-col">
+      <h3>本卦（事之始）</h3>
+      <div class="hex-name" id="nameNow">&nbsp;</div>
+      <div class="hex-lines" id="linesNow">
+        <div class="hex-empty">待 掷</div>
+      </div>
+    </div>
+    <div class="hex-col">
+      <h3>变卦（事之终）</h3>
+      <div class="hex-name" id="nameNext">&nbsp;</div>
+      <div class="hex-lines" id="linesNext">
+        <div class="hex-empty">——</div>
+      </div>
+    </div>
+  </div>
+  <div class="log" id="log"></div>
+</div>
+
+<div class="panel result" id="result">
+  <h2>解 卦</h2>
+  <div class="field"><span class="k">所占</span><span class="v" id="rQuestion"></span></div>
+  <div class="field"><span class="k">得卦</span><span class="v" id="rHex"></span></div>
+  <div class="field"><span class="k">本卦卦辞</span><span class="v guaci" id="rGuaciNow"></span></div>
+  <div class="field"><span class="k">白话简析</span><span class="v brief" id="rBriefNow"></span></div>
+  <hr class="divider" id="dividerNext" style="display:none">
+  <div class="field" id="fNext" style="display:none"><span class="k">变卦</span><span class="v" id="rHexNext"></span></div>
+  <div class="field" id="fGuaciNext" style="display:none"><span class="k">变卦卦辞</span><span class="v guaci" id="rGuaciNext"></span></div>
+  <div class="field" id="fBriefNext" style="display:none"><span class="k">变卦简析</span><span class="v brief" id="rBriefNext"></span></div>
+  <hr class="divider">
+  <div class="field"><span class="k">动爻断法</span><span class="v brief" id="rMethod"></span></div>
+  <div class="field"><span class="k">总断</span><span class="v guaci" id="rVerdict"></span></div>
+  <div class="note" id="rNote"></div>
+  <div class="actions">
+    <button class="ghost" id="btnReset">重新起卦</button>
+  </div>
+</div>
+
+<footer>模拟器仅供文化娱乐 · 大事不决，还须自断</footer>
+
+<script>
+/* ---------- 六十四卦数据 ---------- */
+/* 上卦 \ 下卦（下卦顺序：乾 兑 离 震 巽 坎 艮 坤） */
+const TRI = ['111','110','101','100','011','010','001','000'];
+const TRI_NAME = { '111':'乾','110':'兑','101':'离','100':'震','011':'巽','010':'坎','001':'艮','000':'坤' };
+const TRI_NATURE = { '111':'天','110':'泽','101':'火','100':'雷','011':'风','010':'水','001':'山','000':'地' };
+const TABLE = {
+  '111': ['乾','履','同人','无妄','姤','讼','遁','否'],
+  '110': ['夬','兑','革','随','大过','困','咸','萃'],
+  '101': ['大有','睽','离','噬嗑','鼎','未济','旅','晋'],
+  '100': ['大壮','归妹','丰','震','恒','解','小过','豫'],
+  '011': ['小畜','中孚','家人','益','巽','涣','渐','观'],
+  '010': ['需','节','既济','屯','井','坎','蹇','比'],
+  '001': ['大畜','损','贲','颐','蛊','蒙','艮','剥'],
+  '000': ['泰','临','明夷','复','升','师','谦','坤'],
+};
+/* 卦名 -> [卦辞原文, 白话简析] */
+const HX = {
+  '乾':   ['元亨利贞。','刚健中正，如日行天。事在可为，宜自强不息，然亢则有悔，进须有度。'],
+  '坤':   ['元亨，利牝马之贞。安贞吉。','厚德载物，以柔顺成事。宜随而不宜为首，先迷后得，守正则安。'],
+  '屯':   ['元亨利贞，勿用有攸往，利建侯。','草创之始，艰难在前。宜立根基、结助力，不宜远行冒进。'],
+  '蒙':   ['匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。利贞。','蒙昧待启。须虚心求教、尊师重道，反复无常则无所获。'],
+  '需':   ['有孚，光亨，贞吉，利涉大川。','时机未至，宜耐心守候。心诚而行正，待时而动，终能涉险成事。'],
+  '讼':   ['有孚窒惕，中吉终凶，利见大人，不利涉大川。','争讼之象。中途得和解则吉，纠缠到底必凶。宜退让求和，勿逞强。'],
+  '师':   ['贞，丈人吉，无咎。','兴师动众之象。行正道、有威望者领导则吉；用兵行事须名正言顺。'],
+  '比':   ['吉。原筮元永贞，无咎。不宁方来，后夫凶。','亲比相依之象。择善而从、早早依附则吉，迟疑落后则失机。'],
+  '小畜': ['亨。密云不雨，自我西郊。','力量小有积蓄而未能成雨。时机尚欠火候，宜蓄势缓图，不可强求。'],
+  '履':   ['履虎尾，不咥人，亨。','行于虎尾之后。循礼谨慎、柔中有刚，虽处险境亦可无伤。'],
+  '泰':   ['小往大来，吉亨。','天地交而万物通。上下相应，事正通达之时，然泰极将否，安须思危。'],
+  '否':   ['否之匪人，不利君子贞，大往小来。','闭塞不通之象。此时宜收敛退守，静待时运转通，不可妄动。'],
+  '同人': ['同人于野，亨，利涉大川，利君子贞。','同心协力之象。胸怀开阔、与人合伙，则可共济大川、成其大事。'],
+  '大有': ['元亨。','盛大丰有之时。顺天休命，易得而难守，须以德配位、满而不溢。'],
+  '谦':   ['亨，君子有终。','谦受益之象。卑以自牧，人皆乐助；谦德始终保持，必有所成。'],
+  '豫':   ['利建侯行师。','和乐预备之象。顺时而动则利；然逸乐不可过度，乐极则生悲。'],
+  '随':   ['元亨利贞，无咎。','随时顺变之象。择善而从、与时俱进则无咎；失己随人则有弊。'],
+  '蛊':   ['元亨，利涉大川。先甲三日，后甲三日。','积弊待治之象。须整饬旧事、慎重谋划前后，方可涉险有成。'],
+  '临':   ['元亨利贞。至于八月有凶。','居上临下之象。以诚感人则大通；盛时当虑其衰，早作防备。'],
+  '观':   ['盥而不荐，有孚颙若。','瞻仰观化之象。宜静观省察、以德示人，不宜贸然行动。'],
+  '噬嗑': ['亨，利用狱。','齿咬合而物分。遇阻当断，明辨是非、执法公允则亨通。'],
+  '贲':   ['亨，小利有攸往。','文饰之象。修饰得宜可增色，然本质为先，文不可胜质，只可小往。'],
+  '剥':   ['不利有攸往。','阴盛剥阳，衰落之象。此时宜安守静待，不可有所前往，剥极将复。'],
+  '复':   ['亨。出入无疾，朋来无咎，七日来复。利有攸往。','一阳来复，生机初动。迷途知返、顺势渐行则亨，正当有所作为之始。'],
+  '无妄': ['元亨利贞。其匪正有眚，不利有攸往。','守真无妄之象。循正道而行则大通；一存妄念妄动，即有灾眚。'],
+  '大畜': ['利贞。不家食吉，利涉大川。','大有蓄养之象。厚积已成，宜出而用世，涉险犯难皆可为之。'],
+  '颐':   ['贞吉。观颐，自求口实。','颐养之象。观其所养、慎其所食，言语节饮食，自食其力则吉。'],
+  '大过': ['栋桡，利有攸往，亨。','栋梁弯曲，负荷过重。非常之时须行非常之事，然刚过易折，宜求平衡。'],
+  '坎':   ['习坎，有孚，维心亨，行有尚。','重险之象。身处重重艰险，惟守诚信、刚中不移，步步为营可出险。'],
+  '离':   ['利贞，亨。畜牝牛，吉。','光明附丽之象。行事光明正大则亨；柔顺依附于正，方得其吉。'],
+  '咸':   ['亨，利贞，取女吉。','交感之象。两情相感、以诚相通则亨；感须以正，邪感则凶。'],
+  '恒':   ['亨，无咎，利贞。利有攸往。','恒久持守之象。立身有道、持之以恒则利有所往，朝令夕改则败。'],
+  '遁':   ['亨。小利贞。','退避之象。小人渐长，君子宜退；退非败逃，以退为守自得亨通。'],
+  '大壮': ['利贞。','阳刚壮盛之势。力强之时尤须循礼守正，恃壮妄动则伤。'],
+  '晋':   ['康侯用锡马蕃庶，昼日三接。','旭日东升，晋进之象。柔顺上行，得遇赏识，进取正当时。'],
+  '明夷': ['利艰贞。','光明入地，晦而转。处逆境宜韬光养晦、艰难守正，不可锋芒外露。'],
+  '家人': ['利女贞。','一家之内，各正其位。治事先治内，以内和睦为本，家道正则万事安。'],
+  '睽':   ['小事吉。','乖异相违之象。人心不合，大事难成；小事以柔处之尚吉，宜求同存异。'],
+  '蹇':   ['利西南，不利东北。利见大人，贞吉。','行路蹇难之象。前有险阻，宜退守平易之地，求助贤者，守正则吉。'],
+  '解':   ['利西南。无所往，其来复吉。有攸往夙吉。','险难消解之象。患既解宜速图安宁，既往不究，宽以待之。'],
+  '损':   ['有孚，元吉，无咎，可贞。利有攸往。','减损之象。损己益人、惩忿窒欲，以诚相与，虽损终获大益。'],
+  '益':   ['利有攸往，利涉大川。','增益之象。损上益下、施惠于人，正当积极进取之时，利涉大川。'],
+  '夬':   ['扬于王庭，孚号有厉。利有攸往。','决去之象。清除小人须光明正大、告戒众人；决而能和，不可纯用威武。'],
+  '姤':   ['女壮，勿用取女。','不期而遇之象。一阴初生，微邪渐起，须防患于未然，勿纵容其长。'],
+  '萃':   ['亨。王假有庙，利见大人，亨，利贞。用大牲吉。','聚萃之象。人心汇聚、诚敬以聚众，顺天守正，聚而成事。'],
+  '升':   ['元亨。用见大人，勿恤。南征吉。','木生井上，上升之象。积小成大、循序上升，见大人有助，前行得吉。'],
+  '困':   ['亨，贞，大人吉，无咎。有言不信。','困穷之象。身处困厄，言难取信，惟以沉默守正自处，穷极将通。'],
+  '井':   ['改邑不改井，无丧无得，往来井井。','井养不穷之象。守常不移、修德养源，持之有恒则泽及于人。'],
+  '革':   ['巳日乃孚，元亨利贞，悔亡。','变革之象。改革须时机成熟、取信于人，然后大行，革得当则悔亡。'],
+  '鼎':   ['元吉，亨。','鼎新之象。烹饪养贤，去故取新，正当位凝命，大吉亨通之时。'],
+  '震':   ['亨。震来虩虩，笑言哑哑。','雷动之象。惊变骤至，能凛然自守者，谈笑自若、不出户庭而有主。'],
+  '艮':   ['艮其背，不获其身；行其庭，不见其人。无咎。','止之象。当止则止，止于所当止之处；心不外驰，静守则无咎。'],
+  '渐':   ['女归吉，利贞。','鸿雁渐进之象。循序渐进、婚嫁以礼，不可躐等躁进，徐行则吉。'],
+  '归妹': ['征凶，无攸利。','少女随长男，失礼妄动之象。位不当而行急进则凶，守本分乃可免祸。'],
+  '丰':   ['亨。王假之，勿忧，宜日中。','丰大之象。如日中天，宜果断行事；然盛极必衰，中道而守可延其盛。'],
+  '旅':   ['小亨，旅贞吉。','羁旅之象。寄身在外，柔顺谨慎则小有亨通；大事难图，安分守正为吉。'],
+  '巽':   ['小亨。利有攸往，利见大人。','随风入物，巽顺之象。以谦顺行事可通达，然柔过则无断，利见大人。'],
+  '兑':   ['亨，利贞。','和悦之象。以正相悦、丽泽相资则亨；谄媚求悦则非正道。'],
+  '涣':   ['亨。王假有庙，利涉大川，利贞。','风水涣散之象。人心涣离，宜聚涣合离、托重于尊者，涉险可济。'],
+  '节':   ['亨。苦节不可贞。','节制之象。以礼自制则通；然过苦之节难以持久，当节而有度。'],
+  '中孚': ['豚鱼吉，利涉大川，利贞。','中心诚信之象。诚能感物，信及豚鱼，以诚涉险，无往不利。'],
+  '小过': ['亨，利贞。可小事，不可大事。飞鸟遗之音，不宜上，宜下，大吉。','小有过度之象。宜守平常小事、低处安身，大事不可轻举，宜下不宜上。'],
+  '既济': ['亨，小利贞。初吉终乱。','事已完成之象。初吉而防终乱，功成之后尤须谨慎守成。'],
+  '未济': ['亨。小狐汔济，濡其尾，无攸利。','事未完成之象。临门一步须量力慎终，轻忽则前功尽弃；辨物居方，可图后成。'],
+};
+
+/* ---------- 工具函数 ---------- */
+function hexName(binary) {
+  const lower = binary.slice(0, 3), upper = binary.slice(3);
+  return TABLE[upper][TRI.indexOf(lower)];
+}
+function hexInfo(name) { return HX[name]; }
+function hexLabel(binary) {
+  const lower = binary.slice(0,3), upper = binary.slice(3);
+  return TRI_NATURE[upper] + '上·' + TRI_NATURE[lower] + '下';
+}
+
+/* ---------- 状态 ---------- */
+let lines = [];        // 自下而上：6=老阴 7=少阳 8=少阴 9=老阳
+let casting = false;
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- 起卦流程 ---------- */
+async function cast() {
+  if (casting) return;
+  casting = true;
+  $('btnCast').disabled = true;
+  lines = [];
+  $('result').classList.remove('show');
+  $('linesNow').innerHTML = '';
+  $('linesNext').innerHTML = '<div class="hex-empty">——</div>';
+  $('nameNow').innerHTML = '&nbsp;';
+  $('nameNext').innerHTML = '&nbsp;';
+  $('log').innerHTML = '';
+  $('tossResult').innerHTML = '';
+
+  for (let i = 0; i < 6; i++) {
+    try {
+      await oneToss(i);
+    } catch (err) {
+      $('tossLabel').textContent = '起卦出错：' + err.message + '（请点击"重新起卦"再试）';
+      console.error(err);
+      break;
+    }
+  }
+  if (lines.length === 6) {
+    $('tossLabel').textContent = '六掷既毕，卦象已成';
+    showResult();
+  }
+  casting = false;
+  $('btnCast').disabled = false;
+}
+
+async function oneToss(index) {
+  const posNames = ['初爻','二爻','三爻','四爻','五爻','上爻'];
+  $('tossLabel').textContent = '第 ' + (index + 1) + ' 掷 · ' + posNames[index];
+  const coins = Array.from(document.querySelectorAll('#coins .coin'));
+  coins.forEach(c => { c.classList.add('spinning'); c.textContent = '?'; });
+  await sleep(800);
+
+  // 背为阳记 3，字为阴记 2
+  const faces = coins.map(() => Math.random() < 0.5 ? 3 : 2);
+  const sum = faces.reduce((a, b) => a + b, 0);
+  coins.forEach((c, k) => {
+    c.classList.remove('spinning');
+    if (faces[k] === 3) { c.textContent = '背'; c.innerHTML = '<span class="face-back">背</span>'; }
+    else { c.textContent = '字'; }
+  });
+
+  let type, label;
+  if (sum === 6) { type = 6; label = '老阴 ✕（动）'; }
+  else if (sum === 7) { type = 7; label = '少阳 ━'; }
+  else if (sum === 8) { type = 8; label = '少阴 ━ ━'; }
+  else { type = 9; label = '老阳 ●（动）'; }
+  lines.push(type);
+
+  const resText = faces.map(f => f === 3 ? '背' : '字').join(' ');
+  $('tossResult').innerHTML = '掷得 ' + resText + ' &nbsp;→&nbsp; <b>' + label + '</b>';
+  renderLines();
+  await sleep(650);
+}
+
+/* ---------- 渲染 ---------- */
+function renderLines() {
+  const box = $('linesNow');
+  box.innerHTML = '';
+  const posNames = ['上爻','五爻','四爻','三爻','二爻','初爻'];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const t = lines[i];
+    const row = document.createElement('div');
+    row.className = 'line-row';
+    const label = document.createElement('div');
+    label.className = 'line-label';
+    label.textContent = posNames[i];
+    const line = document.createElement('div');
+    line.className = 'line ' + (t === 7 || t === 9 ? 'yang' : 'yin');
+    if (t === 9) line.classList.add('old-yang');
+    if (t === 6) line.classList.add('old-yin');
+    row.appendChild(label);
+    row.appendChild(line);
+    if (t === 9 || t === 6) {
+      const mark = document.createElement('div');
+      mark.className = 'mark';
+      mark.textContent = t === 9 ? '●' : '✕';
+      row.appendChild(mark);
+    }
+    box.appendChild(row);
+  }
+  if (lines.length === 6) {
+    const nowBin = lines.map(t => (t === 7 || t === 9) ? '1' : '0').join('');
+    const nameNow = hexName(nowBin);
+    $('nameNow').innerHTML = nameNow + '卦 <small>' + hexLabel(nowBin) + '</small>';
+    const changing = lines.map((t, i) => t === 9 || t === 6 ? i : -1).filter(i => i >= 0);
+    if (changing.length > 0) {
+      const nextBin = nowBin.split('');
+      changing.forEach(i => { nextBin[i] = nextBin[i] === '1' ? '0' : '1'; });
+      const nextStr = nextBin.join('');
+      const nameNext = hexName(nextStr);
+      $('nameNext').innerHTML = '<span class="changed">' + nameNext + '</span>卦 <small>' + hexLabel(nextStr) + '</small>';
+      $('linesNext').innerHTML = '';
+      const posNames = ['上爻','五爻','四爻','三爻','二爻','初爻'];
+      for (let i = 5; i >= 0; i--) {
+        const row = document.createElement('div');
+        row.className = 'line-row';
+        const label = document.createElement('div');
+        label.className = 'line-label';
+        label.textContent = posNames[i];
+        const line = document.createElement('div');
+        line.className = 'line ' + (nextBin[i] === '1' ? 'yang' : 'yin');
+        row.appendChild(label);
+        row.appendChild(line);
+        $('linesNext').appendChild(row);
+      }
+    } else {
+      $('nameNext').innerHTML = '<small>无动爻，不变</small>';
+      $('linesNext').innerHTML = '<div class="hex-empty">静 卦</div>';
+    }
+    renderLog(nowBin);
+  }
+}
+
+function renderLog(nowBin) {
+  const posNames = ['初','二','三','四','五','上'];
+  let html = '掷卦记录：';
+  lines.forEach((t, i) => {
+    const s = t === 9 ? '老阳●' : t === 6 ? '老阴✕' : t === 7 ? '少阳' : '少阴';
+    html += posNames[i] + '·' + s + '；';
+  });
+  html += ' 本卦代号 <b>' + nowBin + '</b>（自下而上，1=阳 0=阴）';
+  $('log').innerHTML = html;
+}
+
+/* ---------- 解卦 ---------- */
+function showResult() {
+  const nowBin = lines.map(t => (t === 7 || t === 9) ? '1' : '0').join('');
+  const nameNow = hexName(nowBin);
+  const [guaciNow, briefNow] = hexInfo(nameNow);
+  const changing = lines.map((t, i) => t === 9 || t === 6 ? i : -1).filter(i => i >= 0);
+  const posNames = ['初爻','二爻','三爻','四爻','五爻','上爻'];
+
+  const q = $('question').value.trim();
+  $('rQuestion').textContent = q || '（未言所问）';
+  $('rHex').textContent = nameNow + '卦（' + hexLabel(nowBin) + '）' +
+    (changing.length ? ' 之 ' + hexName(throwBin(nowBin, changing)) + '卦' : '（静卦）');
+  $('rGuaciNow').textContent = '「' + guaciNow + '」';
+  $('rBriefNow').textContent = briefNow;
+
+  let method, verdict;
+
+  if (changing.length === 0) {
+    $('fNext').style.display = 'none';
+    $('fGuaciNext').style.display = 'none';
+    $('fBriefNext').style.display = 'none';
+    $('dividerNext').style.display = 'none';
+    method = '六爻安静，无动爻 —— 以本卦卦辞占断，事体平静，宜守不宜变。';
+    verdict = guaciNow;
+  } else {
+    const nextBin = throwBin(nowBin, changing);
+    const nameNext = hexName(nextBin);
+    const [guaciNext, briefNext] = hexInfo(nameNext);
+    $('fNext').style.display = '';
+    $('fGuaciNext').style.display = '';
+    $('fBriefNext').style.display = '';
+    $('dividerNext').style.display = '';
+    $('fNext').querySelector('.v').textContent = nameNext + '卦（' + hexLabel(nextBin) + '）';
+    $('rGuaciNext').textContent = '「' + guaciNext + '」';
+    $('rBriefNext').textContent = briefNext;
+
+    const pos = changing.map(i => posNames[i]).join('、');
+    if (changing.length === 1) {
+      method = '一爻动（' + pos + '）—— 传统断法以本卦动爻爻辞为主断，参考变卦卦辞看事之归趋（本模拟器未列爻辞原文，可自行查对《周易》' + nameNow + '卦' + pos + '爻辞）。';
+    } else if (changing.length === 2) {
+      method = '两爻动（' + pos + '）—— 简法以本卦两动爻爻辞参断，以上动爻为主；变卦示事之终局。';
+    } else {
+      method = changing.length + '爻齐动（' + pos + '）—— 事机多变、变动剧烈。简法多以本卦为体、变卦为用，以变卦卦辞占断为主，本卦卦辞参看。';
+    }
+    verdict = '本卦「' + nameNow + '」示事之发端，变卦「' + nameNext + '」示事之归趋。' + briefNow + ' 最终趋向：' + briefNext;
+  }
+
+  $('rMethod').textContent = method;
+  $('rVerdict').textContent = verdict;
+  $('rNote').textContent = '占时：' + new Date().toLocaleString('zh-CN') +
+    '。解卦规则取自传统筮法常识（背三字二，六老阴、七少阳、八少阴、九老阳）；本模拟器结果仅供文化娱乐参考。';
+
+  $('result').classList.add('show');
+  $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function throwBin(bin, changingIdx) {
+  const arr = bin.split('');
+  changingIdx.forEach(i => { arr[i] = arr[i] === '1' ? '0' : '1'; });
+  return arr.join('');
+}
+
+/* ---------- 事件 ---------- */
+$('btnCast').addEventListener('click', cast);
+$('btnReset').addEventListener('click', () => {
+  lines = [];
+  $('linesNow').innerHTML = '<div class="hex-empty">待 掷</div>';
+  $('linesNext').innerHTML = '<div class="hex-empty">——</div>';
+  $('nameNow').innerHTML = '&nbsp;';
+  $('nameNext').innerHTML = '&nbsp;';
+  $('log').innerHTML = '';
+  $('tossResult').innerHTML = '';
+  $('tossLabel').textContent = '铜钱静候，心诚则灵';
+  $('result').classList.remove('show');
+  document.querySelectorAll('#coins .coin').forEach(c => { c.textContent = '字'; });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+$('question').addEventListener('keydown', e => { if (e.key === 'Enter') cast(); });
+</script>
+</body>
+</html>
